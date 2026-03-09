@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "electricity-pipeline"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "dagster",
+    "dagster-webserver",
+    "dagster-postgres",
+    "requests",
+    "sqlalchemy",
+    "psycopg2-binary",
+    "pandas",
+    "python-dotenv",
+    "pytest",
+    "tabulate",
+    "ruff",
+]
+
+[tool.dagster]
+module_name = "pipeline.definitions"
+
+[tool.setuptools]
+packages = ["pipeline"]

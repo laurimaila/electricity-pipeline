@@ -1,0 +1,83 @@
+# helm install dagster-release dagster/dagster -n electricity-pipeline -f dagster-values.yaml
+
+postgresql:
+  enabled: false
+
+run_storage:
+  type: postgres
+  config:
+    postgres_db:
+      hostname: "postgres-service.postgres-namespace.svc.cluster.local"
+      username:
+        secretKeyRef:
+          name: dagster-db-secrets
+          key: username
+      password:
+        secretKeyRef:
+          name: dagster-db-secrets
+          key: password
+      db_name: "dagster_internal"
+      port: 5432
+
+event_log_storage:
+  type: postgres
+  config:
+    postgres_db:
+      hostname: "postgres-service.postgres-namespace.svc.cluster.local"
+      username:
+        secretKeyRef:
+          name: dagster-db-secrets
+          key: username
+      password:
+        secretKeyRef:
+          name: dagster-db-secrets
+          key: password
+      db_name: "dagster_internal"
+      port: 5432
+
+schedule_storage:
+  type: postgres
+  config:
+    postgres_db:
+      hostname: "postgres-service.postgres-namespace.svc.cluster.local"
+      username:
+        secretKeyRef:
+          name: dagster-db-secrets
+          key: username
+      password:
+        secretKeyRef:
+          name: dagster-db-secrets
+          key: password
+      db_name: "dagster_internal"
+      port: 5432
+
+dagster-user-deployments:
+  enabled: true
+  deployments:
+    - name: "electricity-pipeline"
+      image:
+        repository: "ghcr.io/laurimaila/electricity-pipeline"
+        tag: "latest"
+        pullPolicy: Always
+      port: 3000
+      env:
+        - name: ENTSOE_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: entsoe-secrets
+              key: api-token
+        - name: POSTGRES_CONNECTION_STRING
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secrets
+              key: connection-string
+        - name: DAGSTER_HOME
+          value: "/app"
+
+dagster-daemon:
+  enabled: true
+
+dagster-webserver:
+  enabled: true
+  service:
+    type: ClusterIP

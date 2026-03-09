@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: dagster
+      POSTGRES_PASSWORD: dagster_password
+      POSTGRES_DB: electricity-data
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data-dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dagster -d electricity-data"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  dagster:
+    build: .
+    volumes:
+      - .:/app
+      - dagster-home-dev:/opt/dagster/dagster_home
+    ports:
+      - "3000:3000"
+    environment:
+      - ENTSOE_API_TOKEN=${ENTSOE_API_TOKEN}
+      - POSTGRES_CONNECTION_STRING=postgresql://dagster:dagster_password@db:5432/electricity-data
+      - DAGSTER_POSTGRES_USER=dagster
+      - DAGSTER_POSTGRES_PASSWORD=dagster_password
+      - DAGSTER_POSTGRES_DB=electricity-data
+      - DAGSTER_POSTGRES_HOSTNAME=db
+      - DAGSTER_HOME=/opt/dagster/dagster_home
+      - PYTHONPATH=/app
+    depends_on:
+      db:
+        condition: service_healthy
+    command: dagster dev -h 0.0.0.0 -p 3000
+
+volumes:
+  postgres-data-dev:
+  dagster-home-dev:

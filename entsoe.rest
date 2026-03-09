@@ -1,0 +1,9 @@
+@baseUrl = https://transparency.entsoe.eu/api
+@token = {{$processEnv ENTSOE_API_TOKEN}}
+
+GET {{baseUrl}}?securityToken={{token}}
+    &documentType=A44
+    &in_Domain=10YFI-1--------U
+    &out_Domain=10YFI-1--------U
+    &periodStart=202603090000
+    &periodEnd=202603100000
