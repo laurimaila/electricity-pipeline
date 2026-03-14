@@ -66,11 +66,6 @@ dagster-user-deployments:
             secretKeyRef:
               name: entsoe-secrets
               key: api-token
-        - name: POSTGRES_CONNECTION_STRING
-          valueFrom:
-            secretKeyRef:
-              name: postgres-secrets
-              key: connection-string
         - name: DAGSTER_HOME
           value: "/app"
 

@@ -1,5 +1,13 @@
+from dagster import (
+    AssetSelection,
+    AutomationConditionSensorDefinition,
+    DefaultSensorStatus,
+    Definitions,
+    EnvVar,
+    load_assets_from_modules,
+)
 from dotenv import load_dotenv
-from dagster import Definitions, load_assets_from_modules, EnvVar, AutomationConditionSensorDefinition, DefaultSensorStatus, AssetSelection
+
 from .assets import prices
 from .resources import ApiResource, PostgresResource
 
@@ -21,7 +29,11 @@ defs = Definitions(
             api_key=EnvVar("ENTSOE_API_TOKEN"),
         ),
         "postgres": PostgresResource(
-            connection_string=EnvVar("POSTGRES_CONNECTION_STRING"),
+            user=EnvVar("POSTGRES_USER"),
+            password=EnvVar("POSTGRES_PASSWORD"),
+            host=EnvVar("POSTGRES_HOST"),
+            port=EnvVar("POSTGRES_PORT"),
+            db_name=EnvVar("POSTGRES_DB"),
         ),
     },
 )

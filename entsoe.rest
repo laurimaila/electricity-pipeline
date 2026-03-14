@@ -1,9 +1,9 @@
-@baseUrl = https://transparency.entsoe.eu/api
-@token = {{$processEnv ENTSOE_API_TOKEN}}
+@baseUrl = https://web-api.tp.entsoe.eu/api
+@token = <...>
 
 GET {{baseUrl}}?securityToken={{token}}
     &documentType=A44
     &in_Domain=10YFI-1--------U
     &out_Domain=10YFI-1--------U
-    &periodStart=202603090000
-    &periodEnd=202603100000
+    &periodStart=202603140000
+    &periodEnd=202603150000

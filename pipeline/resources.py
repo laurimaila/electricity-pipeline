@@ -2,6 +2,7 @@ import requests
 from dagster import ConfigurableResource
 from sqlalchemy import create_engine
 
+
 class ApiResource(ConfigurableResource):
     api_key: str
     base_url: str = "https://web-api.tp.entsoe.eu/api"
@@ -19,8 +20,17 @@ class ApiResource(ConfigurableResource):
         response.raise_for_status()
         return response.text
 
+
 class PostgresResource(ConfigurableResource):
-    connection_string: str
+    user: str
+    password: str
+    host: str
+    port: str
+    db_name: str
+
+    @property
+    def connection_string(self) -> str:
+        return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.db_name}"
 
     def get_engine(self):
         return create_engine(self.connection_string)

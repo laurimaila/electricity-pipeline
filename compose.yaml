@@ -1,0 +1,42 @@
+services:
+  dagster:
+    build: .
+    develop:
+      watch:
+        - action: sync
+          path: .
+          target: /app
+        - action: rebuild
+          path: pyproject.toml
+    ports:
+      - "3000:3000"
+    environment:
+      ENTSOE_API_TOKEN: ${ENTSOE_API_TOKEN}
+      VAT_PERCENTAGE: ${VAT_PERCENTAGE:-25.5}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: ${POSTGRES_HOST}:-db
+    depends_on:
+      db:
+        condition: service_healthy
+    command: dagster dev -h 0.0.0.0 -p 3000
+
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data-dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db-data-dev:

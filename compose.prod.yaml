@@ -1,0 +1,58 @@
+services:
+  dagster-webserver:
+    build: .
+    ports:
+      - "3010:3000"
+    environment:
+      ENTSOE_API_TOKEN: ${ENTSOE_API_TOKEN}
+      VAT_PERCENTAGE: ${VAT_PERCENTAGE:-25.5}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+    command: ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000"]
+    restart: unless-stopped
+    depends_on:
+      dagster-daemon:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/server_info')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  dagster-daemon:
+    build: .
+    environment:
+      ENTSOE_API_TOKEN: ${ENTSOE_API_TOKEN}
+      VAT_PERCENTAGE: ${VAT_PERCENTAGE:-25.5}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+    restart: unless-stopped
+    command: ["dagster-daemon", "run"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - db-prod:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db-prod:

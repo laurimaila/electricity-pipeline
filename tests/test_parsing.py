@@ -1,36 +1,40 @@
+from pathlib import Path
+from typing import cast
+
 import pandas as pd
-from pipeline.assets.prices import parsed_electricity_prices
+import pytest
 from dagster import Output
 
-def test_parsed_electricity_prices():
-    # Arrange
-    mock_xml = """<?xml version="1.0" encoding="UTF-8"?>
-    <Publication_MarketDocument xmlns="urn:iec62325.351:tc57wg16:451-3:publicationdocument:7:0">
-        <TimeSeries>
-            <Period>
-                <timeInterval>
-                    <start>2024-03-08T23:00Z</start>
-                    <end>2024-03-09T23:00Z</end>
-                </timeInterval>
-                <resolution>PT60M</resolution>
-                <Point><position>1</position><price.amount>50.5</price.amount></Point>
-                <Point><position>2</position><price.amount>48.2</price.amount></Point>
-                <Point><position>3</position><price.amount>45.0</price.amount></Point>
-            </Period>
-        </TimeSeries>
-    </Publication_MarketDocument>
-    """
+from pipeline.assets.prices import PriceConfig, parsed_electricity_prices
 
-    # Act
-    output = parsed_electricity_prices(mock_xml)
-    assert isinstance(output, Output)
+
+@pytest.fixture
+def mock_xml() -> str:
+    """Fixture to load the mock XML data from a file."""
+    path = Path(__file__).parent / "mock_prices.xml"
+    return path.read_text()
+
+
+def test_parsed_electricity_prices(mock_xml: str):
+    """Test parsing the mock XML data using the mock_xml fixture."""
+    config = PriceConfig()
+    output = cast(Output, parsed_electricity_prices(mock_xml, config))
     df = output.value
 
-    # Assert
     assert isinstance(df, pd.DataFrame)
-    assert len(df) == 3
-    assert df.iloc[0]['price_eur_mwh'] == 50.5
-    assert df.iloc[1]['price_eur_mwh'] == 48.2
-    assert df.iloc[2]['price_eur_mwh'] == 45.0
-    # Check if first timestamp is parsed correctly (2024-03-08 23:00:00 UTC)
-    assert df.iloc[0]['timestamp'].strftime("%Y-%m-%dT%H:%M:%SZ") == "2024-03-08T23:00:00Z"
+    # 2 days * 96 points/day = 192 points
+    assert len(df) == 192
+
+    # First point (2026-03-13 23:00)
+    assert df.iloc[0]["price_eur_mwh"] == 4.99
+
+    # Check gap filling (position 2, 3, 4 should take position 1's price)
+    assert df.iloc[1]["price_eur_mwh"] == 4.99
+    assert df.iloc[2]["price_eur_mwh"] == 4.99
+    assert df.iloc[3]["price_eur_mwh"] == 4.99
+
+    # Position 5 (2026-03-14 00:00)
+    assert df.iloc[4]["price_eur_mwh"] == 4.84
+
+    # Check if first timestamp is parsed correctly
+    assert df.iloc[0]["timestamp"].strftime("%Y-%m-%dT%H:%M:%SZ") == "2026-03-13T23:00:00Z"

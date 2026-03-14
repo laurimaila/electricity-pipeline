@@ -7,7 +7,7 @@ jobs:
   lint-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -23,8 +23,11 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
-      - name: Run Ruff
+      - name: Run Ruff format check
+        run: uv run ruff format --check .
+
+      - name: Run Ruff lint
         run: uv run ruff check .
 
       - name: Run Pytest
-        run: uv run pytest
+        run: uv run pytest -v --tb=short

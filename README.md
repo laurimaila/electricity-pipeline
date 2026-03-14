@@ -31,7 +31,7 @@ Update `dagster-values.yaml` with your own repository and database configs.
 # Create namespace and secrets
 kubectl create namespace electricity-pipeline
 kubectl create secret generic entsoe-secrets --from-literal=api-token="YOUR_TOKEN" -n electricity-pipeline
-kubectl create secret generic postgres-secrets --from-literal=connection-string="postgresql://..." -n electricity-pipeline
+# kubectl create secret generic postgres-secrets --from-literal=connection-string="postgresql://..." -n electricity-pipeline
 
 # Install via Helm
 helm repo add dagster https://dagster-io.github.io/helm
