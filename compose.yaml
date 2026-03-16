@@ -9,18 +9,18 @@ services:
         - action: rebuild
           path: pyproject.toml
     ports:
-      - "3000:3000"
+      - "3005:3000"
     environment:
       ENTSOE_API_TOKEN: ${ENTSOE_API_TOKEN}
       VAT_PERCENTAGE: ${VAT_PERCENTAGE:-25.5}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_HOST: ${POSTGRES_HOST}:-db
+      POSTGRES_HOST: ${POSTGRES_HOST:-db}
     depends_on:
       db:
         condition: service_healthy
-    command: dagster dev -h 0.0.0.0 -p 3000
+    command: dg dev -h 0.0.0.0 -p 3000
 
   db:
     image: postgres:18-alpine
@@ -28,6 +28,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+    # Expose database port for dev
     ports:
       - "5432:5432"
     volumes:

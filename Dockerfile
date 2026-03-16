@@ -8,7 +8,7 @@ ENV UV_COMPILE_BYTECODE=1 \
 ENV DAGSTER_HOME=/opt/dagster/dagster_home
 RUN mkdir -p $DAGSTER_HOME
 
-COPY dagster.yaml workspace.yaml $DAGSTER_HOME/
+COPY dagster.yaml $DAGSTER_HOME/
 
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project

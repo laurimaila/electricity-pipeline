@@ -8,12 +8,12 @@ from dagster import (
 )
 from dotenv import load_dotenv
 
-from .assets import prices
+from .assets import spot_prices
 from .resources import ApiResource, PostgresResource
 
 load_dotenv()
 
-all_assets = load_assets_from_modules([prices])
+all_assets = load_assets_from_modules([spot_prices])
 
 automation_sensor = AutomationConditionSensorDefinition(
     name="entsoe_automation_sensor",

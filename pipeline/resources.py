@@ -32,5 +32,9 @@ class PostgresResource(ConfigurableResource):
     def connection_string(self) -> str:
         return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.db_name}"
 
-    def get_engine(self):
-        return create_engine(self.connection_string)
+    def get_engine(self, pool_size: int = 5, max_overflow: int = 10):
+        return create_engine(
+            self.connection_string,
+            pool_size=pool_size,
+            max_overflow=max_overflow,
+        )

@@ -16,10 +16,20 @@ dependencies = [
     "pandas",
     "python-dotenv",
     "tabulate",
+    "dagster-dg-cli>=1.12.18",
+    "bs4>=0.0.2",
+    "lxml>=6.0.2",
+    "click==8.1.8",
 ]
 
 [tool.dagster]
 module_name = "pipeline.definitions"
+
+[tool.dg]
+directory_type = "project"
+
+[tool.dg.project]
+root_module = "pipeline"
 
 [tool.ruff]
 line-length = 100
@@ -33,6 +43,7 @@ packages = ["pipeline"]
 
 [dependency-groups]
 dev = [
+    "dagster-dg>=0.2.2",
     "pytest",
     "ruff",
     "ty>=0.0.23",
