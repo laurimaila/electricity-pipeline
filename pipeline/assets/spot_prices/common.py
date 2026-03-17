@@ -17,6 +17,4 @@ price_partitions = DailyPartitionsDefinition(
 )
 
 # Re-run if data is missing or downstream failed
-entsoe_automation_condition = (
-    AutomationCondition.missing() | AutomationCondition.any_deps_missing()
-) & AutomationCondition.on_cron("*/10 12-14 * * *")
+entsoe_automation_condition = AutomationCondition.missing() | AutomationCondition.execution_failed()
