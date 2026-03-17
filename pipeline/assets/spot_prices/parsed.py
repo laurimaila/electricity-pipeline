@@ -5,14 +5,16 @@ from bs4 import BeautifulSoup
 from dagster import (
     AssetCheckResult,
     AssetExecutionContext,
-    AutomationCondition,
+    Backoff,
     MetadataValue,
     Output,
+    RetryPolicy,
     asset,
     asset_check,
 )
 
-from .common import PriceConfig, price_partitions
+from ...resources import ApiResource
+from .common import PriceConfig, entsoe_automation_condition, price_partitions
 
 
 def apply_partition_filter(context: AssetExecutionContext | None, df: pd.DataFrame) -> pd.DataFrame:
@@ -24,12 +26,28 @@ def apply_partition_filter(context: AssetExecutionContext | None, df: pd.DataFra
     return df[(df["timestamp"] >= start_utc) & (df["timestamp"] < end_utc)]
 
 
-@asset(partitions_def=price_partitions, automation_condition=AutomationCondition.eager())
+@asset(
+    partitions_def=price_partitions,
+    automation_condition=entsoe_automation_condition,
+    retry_policy=RetryPolicy(
+        max_retries=5,
+        delay=10,
+        backoff=Backoff.EXPONENTIAL,
+    ),
+)
 def parsed_electricity_prices(
-    context: AssetExecutionContext, raw_entsoe_xml: str, config: PriceConfig
+    context: AssetExecutionContext, entsoe: ApiResource, config: PriceConfig
 ) -> Output[pd.DataFrame]:
-    """Parses ENTSO-E API XML response into a DataFrame, accepting only 15-minute resolution."""
-    soup = BeautifulSoup(raw_entsoe_xml, "lxml-xml")
+    """Fetches XML from ENTSO-E and parses it into a DataFrame"""
+
+    start_dt, end_dt = context.partition_time_window
+    start_str = start_dt.strftime("%Y%m%d%H%M")
+    end_str = end_dt.strftime("%Y%m%d%H%M")
+
+    context.log.info(f"Fetching prices for {context.partition_key} ({start_dt} to {end_dt})")
+    xml_data = entsoe.fetch_day_ahead_prices("10YFI-1--------U", start_str, end_str)
+
+    soup = BeautifulSoup(xml_data, "lxml-xml")
 
     prices = []
     for time_series in soup.find_all("TimeSeries"):
@@ -59,10 +77,15 @@ def parsed_electricity_prices(
                 prices.append({"timestamp": start + (pos - 1) * step, "price_eur_mwh": last_price})
 
     if not prices:
-        raise ValueError("No price data found in XML")
+        raise ValueError("No price data found in XML — will retry including the API call")
 
     df = pd.DataFrame(prices).drop_duplicates(subset=["timestamp"])
     df = apply_partition_filter(context, df)
+
+    start_utc, end_utc = context.partition_time_window
+    expected_rows = int((end_utc - start_utc).total_seconds() / (15 * 60))
+    if len(df) < expected_rows:
+        raise ValueError(f"Insufficient data: parsed {len(df)} rows, expected {expected_rows}")
 
     return Output(
         value=df,
@@ -70,24 +93,14 @@ def parsed_electricity_prices(
     )
 
 
-def validate_full_day_data(
-    partition_time_window: tuple[pd.Timestamp, pd.Timestamp], df: pd.DataFrame
-) -> AssetCheckResult:
-    """Logic to check if the partition contains the expected number of rows (96 for 15m)."""
-    start_utc, end_utc = partition_time_window
-    expected_rows = int((end_utc - start_utc).total_seconds() / (15 * 60))
-    actual_rows = len(df)
-
-    return AssetCheckResult(
-        passed=bool(actual_rows >= expected_rows),
-        metadata={
-            "expected_rows": expected_rows,
-            "actual_rows": actual_rows,
-        },
-    )
-
-
 @asset_check(asset=parsed_electricity_prices)
 def check_full_day_data(context: AssetExecutionContext, parsed_electricity_prices: pd.DataFrame):
     """Checks if the partition contains the expected number of rows (96 for 15m)."""
-    return validate_full_day_data(context.partition_time_window, parsed_electricity_prices)
+    start_utc, end_utc = context.partition_time_window
+    expected_rows = int((end_utc - start_utc).total_seconds() / (15 * 60))
+    actual_rows = len(parsed_electricity_prices)
+
+    return AssetCheckResult(
+        passed=bool(actual_rows >= expected_rows),
+        metadata={"expected_rows": expected_rows, "actual_rows": actual_rows},
+    )
