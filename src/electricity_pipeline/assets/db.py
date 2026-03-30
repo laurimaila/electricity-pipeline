@@ -2,18 +2,16 @@ import pandas as pd
 from dagster import (
     AssetExecutionContext,
     AutomationCondition,
-    Backoff,
     MetadataValue,
     Output,
-    RetryPolicy,
     asset,
     job,
     op,
 )
 from sqlalchemy import text
 
-from ...resources import PostgresResource
-from .common import PriceConfig, price_partitions
+from ..resources import PostgresResource
+from .common import PriceConfig, daily_partitions
 
 
 @op
@@ -83,13 +81,8 @@ def db_setup_job():
 
 
 @asset(
-    partitions_def=price_partitions,
+    partitions_def=daily_partitions,
     automation_condition=AutomationCondition.eager(),
-    retry_policy=RetryPolicy(
-        max_retries=5,
-        delay=10,
-        backoff=Backoff.EXPONENTIAL,
-    ),
 )
 def db_electricity_prices(
     context: AssetExecutionContext,

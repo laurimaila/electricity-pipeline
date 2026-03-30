@@ -12,9 +12,11 @@ class PriceConfig(Config):
 
 
 # 24h CET partitions starting from October 2nd 2025
-price_partitions = DailyPartitionsDefinition(
+daily_partitions = DailyPartitionsDefinition(
     start_date="2025-10-02", timezone="Europe/Brussels", end_offset=2
 )
 
 # Re-run if data is missing or downstream failed
-entsoe_automation_condition = AutomationCondition.missing() | AutomationCondition.execution_failed()
+entsoe_automation_condition = AutomationCondition.on_cron("*/10 11-14 * * *") & (
+    AutomationCondition.missing() | AutomationCondition.execution_failed()
+)

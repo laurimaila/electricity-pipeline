@@ -23,23 +23,24 @@ dependencies = [
 ]
 
 [tool.dagster]
-module_name = "pipeline.definitions"
+module_name = "electricity_pipeline.definitions"
 
 [tool.dg]
 directory_type = "project"
 
 [tool.dg.project]
-root_module = "pipeline"
+root_module = "electricity_pipeline"
 
 [tool.ruff]
 line-length = 100
 lint.select = ["E", "F", "I"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["pipeline"]
+known-first-party = ["electricity_pipeline"]
 
 [tool.setuptools]
-packages = ["pipeline"]
+package-dir = {"" = "src"}
+packages = ["electricity_pipeline"]
 
 [dependency-groups]
 dev = [

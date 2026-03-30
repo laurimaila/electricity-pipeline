@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 from dagster import build_asset_context
 
-from pipeline.assets.spot_prices import (
+from electricity_pipeline.assets import (
     apply_partition_filter,
     parsed_electricity_prices,
 )

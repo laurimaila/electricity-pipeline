@@ -10,19 +10,19 @@ from dagster import (
 )
 from dotenv import load_dotenv
 
-from .assets import spot_prices
-from .assets.spot_prices import db_setup_job
+from . import assets
+from .assets import db_setup_job
 from .resources import ApiResource, PostgresResource
 
 load_dotenv()
 
-all_assets = load_assets_from_modules([spot_prices])
+all_assets = load_assets_from_modules([assets])
 
 automation_sensor = AutomationConditionSensorDefinition(
     name="entsoe_automation_sensor",
-    target=AssetSelection.assets("parsed_electricity_prices", "db_electricity_prices"),
+    target=AssetSelection.all(),
     default_status=DefaultSensorStatus.RUNNING,
-    minimum_interval_seconds=600,
+    minimum_interval_seconds=60,
 )
 
 

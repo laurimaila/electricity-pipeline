@@ -1,20 +1,23 @@
-from datetime import timedelta
-
 import pandas as pd
 from bs4 import BeautifulSoup
 from dagster import (
     AssetCheckResult,
     AssetExecutionContext,
-    Backoff,
     MetadataValue,
     Output,
-    RetryPolicy,
     asset,
     asset_check,
 )
 
-from ...resources import ApiResource
-from .common import PriceConfig, entsoe_automation_condition, price_partitions
+from ..resources import ApiResource
+from .common import PriceConfig, daily_partitions, entsoe_automation_condition
+
+
+def expected_interval_count(start_utc, end_utc, freq_minutes: int = 15) -> int:
+    """Returns the number of expected intervals for time window."""
+    return len(
+        pd.date_range(start=start_utc, end=end_utc, freq=f"{freq_minutes}min", inclusive="left")
+    )
 
 
 def apply_partition_filter(context: AssetExecutionContext | None, df: pd.DataFrame) -> pd.DataFrame:
@@ -27,13 +30,8 @@ def apply_partition_filter(context: AssetExecutionContext | None, df: pd.DataFra
 
 
 @asset(
-    partitions_def=price_partitions,
+    partitions_def=daily_partitions,
     automation_condition=entsoe_automation_condition,
-    retry_policy=RetryPolicy(
-        max_retries=5,
-        delay=10,
-        backoff=Backoff.EXPONENTIAL,
-    ),
 )
 def parsed_electricity_prices(
     context: AssetExecutionContext, entsoe: ApiResource, config: PriceConfig
@@ -57,7 +55,6 @@ def parsed_electricity_prices(
 
         start = pd.to_datetime(period.timeInterval.start.text)
         end = pd.to_datetime(period.timeInterval.end.text)
-        step = timedelta(minutes=15)
 
         points_map = {
             int(p.position.text): float(p.find("price.amount").text)
@@ -68,13 +65,13 @@ def parsed_electricity_prices(
         if not points_map:
             continue
 
-        num_intervals = int((end - start).total_seconds() / step.total_seconds())
+        timestamps = pd.date_range(start=start, end=end, freq="15min", inclusive="left")
         last_price = None
-        for pos in range(1, num_intervals + 1):
+        for pos, ts in enumerate(timestamps, start=1):
             if pos in points_map:
                 last_price = points_map[pos]
             if last_price is not None:
-                prices.append({"timestamp": start + (pos - 1) * step, "price_eur_mwh": last_price})
+                prices.append({"timestamp": ts, "price_eur_mwh": last_price})
 
     if not prices:
         raise ValueError("No price data found in XML — will retry including the API call")
@@ -83,7 +80,7 @@ def parsed_electricity_prices(
     df = apply_partition_filter(context, df)
 
     start_utc, end_utc = context.partition_time_window
-    expected_rows = int((end_utc - start_utc).total_seconds() / (15 * 60))
+    expected_rows = expected_interval_count(*context.partition_time_window)
     if len(df) < expected_rows:
         raise ValueError(f"Insufficient data: parsed {len(df)} rows, expected {expected_rows}")
 
@@ -97,7 +94,7 @@ def parsed_electricity_prices(
 def check_full_day_data(context: AssetExecutionContext, parsed_electricity_prices: pd.DataFrame):
     """Checks if the partition contains the expected number of rows (96 for 15m)."""
     start_utc, end_utc = context.partition_time_window
-    expected_rows = int((end_utc - start_utc).total_seconds() / (15 * 60))
+    expected_rows = expected_interval_count(*context.partition_time_window)
     actual_rows = len(parsed_electricity_prices)
 
     return AssetCheckResult(
