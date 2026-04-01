@@ -1,0 +1,16 @@
+version: 2
+
+sources:
+  - name: public
+    database: "{{ env_var('POSTGRES_DB', '') }}"
+    schema: public
+    tables:
+      - name: electricity_prices
+        columns:
+          - name: timestamp
+            tests:
+              - unique
+              - not_null
+          - name: price_eur_mwh
+            tests:
+              - not_null

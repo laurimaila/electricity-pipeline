@@ -16,6 +16,9 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY . .
 RUN uv sync --frozen --no-dev
 
+# Generate dbt manifest
+RUN cd dbt && uv run dbt parse --profiles-dir .
+
 EXPOSE 3000
 
 CMD ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000"]

@@ -1,4 +1,4 @@
-# helm install dagster-release dagster/dagster -n electricity-pipeline -f dagster-values.yaml
+# helm install dagster-release dagster/dagster -n electricity-pipeline -f values.yaml
 
 postgresql:
   enabled: false

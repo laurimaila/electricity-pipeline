@@ -5,79 +5,11 @@ from dagster import (
     MetadataValue,
     Output,
     asset,
-    job,
-    op,
 )
 from sqlalchemy import text
 
 from ..resources import PostgresResource
-from .common import PriceConfig, daily_partitions
-
-
-@op
-def setup_db_op(postgres: PostgresResource, config: PriceConfig):
-    """Sets up the Postgres schema and views."""
-    engine = postgres.get_engine(pool_size=1, max_overflow=0)
-    vat_multiplier = 1 + (config.vat_percentage / 100.0)
-
-    try:
-        with engine.begin() as conn:
-            conn.execute(
-                text("""
-                CREATE TABLE IF NOT EXISTS electricity_prices (
-                    timestamp TIMESTAMPTZ PRIMARY KEY,
-                    price_eur_mwh NUMERIC NOT NULL,
-                    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            )
-
-            conn.execute(
-                text(f"""
-                CREATE OR REPLACE VIEW v_electricity_prices AS
-                SELECT
-                    timestamp,
-                    (price_eur_mwh / 10.0) as price_cent_kwh,
-                    (price_eur_mwh / 10.0) * {vat_multiplier} as price_vat_cent_kwh,
-                    created_at
-                FROM electricity_prices;
-            """)
-            )
-
-            conn.execute(
-                text(f"""
-                CREATE OR REPLACE VIEW v_daily_electricity_prices AS
-                SELECT
-                    date_trunc('day', timestamp AT TIME ZONE 'Europe/Helsinki')
-                        AT TIME ZONE 'Europe/Helsinki' AS bucket_day,
-                    AVG(price_eur_mwh / 10.0) AS avg_price_cent_kwh,
-                    AVG((price_eur_mwh / 10.0) * {vat_multiplier}) AS avg_price_vat_cent_kwh
-                FROM electricity_prices
-                GROUP BY bucket_day;
-            """)
-            )
-
-            conn.execute(
-                text(f"""
-                CREATE OR REPLACE VIEW v_monthly_electricity_prices AS
-                SELECT
-                    date_trunc('month', timestamp AT TIME ZONE 'Europe/Helsinki')
-                        AT TIME ZONE 'Europe/Helsinki' AS bucket_month,
-                    AVG(price_eur_mwh / 10.0) AS avg_price_cent_kwh,
-                    AVG((price_eur_mwh / 10.0) * {vat_multiplier}) AS avg_price_vat_cent_kwh
-                FROM electricity_prices
-                GROUP BY bucket_month;
-            """)
-            )
-
-    finally:
-        engine.dispose()
-
-
-@job
-def db_setup_job():
-    """Job to set up the database schema once."""
-    setup_db_op()
+from .common import daily_partitions
 
 
 @asset(
@@ -94,6 +26,15 @@ def db_electricity_prices(
 
     try:
         with engine.begin() as conn:
+            conn.execute(
+                text("""
+                CREATE TABLE IF NOT EXISTS electricity_prices (
+                timestamp TIMESTAMPTZ PRIMARY KEY,
+                price_eur_mwh NUMERIC NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            )
             records = parsed_electricity_prices.to_dict("records")
 
             if records:

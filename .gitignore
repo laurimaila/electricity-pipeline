@@ -9,6 +9,11 @@ history/
 .logs_queue/
 .telemetry/
 
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+dbt/.user.yml
+
 __pycache__/
 *.py[cod]
 *$py.class

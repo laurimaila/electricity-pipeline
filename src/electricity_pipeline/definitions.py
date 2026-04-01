@@ -1,22 +1,29 @@
 from dagster import (
     AssetSelection,
+    AutomationCondition,
     AutomationConditionSensorDefinition,
     DefaultSensorStatus,
     Definitions,
     EnvVar,
-    RunRequest,
     load_assets_from_modules,
-    sensor,
 )
+from dagster_dbt import DbtCliResource
 from dotenv import load_dotenv
 
 from . import assets
-from .assets import db_setup_job
+from .assets.dbt import DBT_PROJECT_DIR, electricity_pipeline_dbt_assets
 from .resources import ApiResource, PostgresResource
 
 load_dotenv()
 
 all_assets = load_assets_from_modules([assets])
+
+# Apply eager() to all dbt assets
+dbt_assets_with_automation = [
+    electricity_pipeline_dbt_assets.map_asset_specs(
+        lambda spec: spec.replace_attributes(automation_condition=AutomationCondition.eager())
+    )
+]
 
 automation_sensor = AutomationConditionSensorDefinition(
     name="entsoe_automation_sensor",
@@ -25,19 +32,9 @@ automation_sensor = AutomationConditionSensorDefinition(
     minimum_interval_seconds=60,
 )
 
-
-@sensor(job=db_setup_job, default_status=DefaultSensorStatus.RUNNING, minimum_interval_seconds=3600)
-def db_setup_sensor():
-    yield RunRequest(
-        run_key="db_setup_once",
-        run_config={"ops": {"setup_db_op": {"config": {"vat_percentage": 25.5}}}},
-    )
-
-
 defs = Definitions(
-    assets=all_assets,
-    jobs=[db_setup_job],
-    sensors=[automation_sensor, db_setup_sensor],
+    assets=[*all_assets, *dbt_assets_with_automation],
+    sensors=[automation_sensor],
     resources={
         "entsoe": ApiResource(
             api_key=EnvVar("ENTSOE_API_TOKEN"),
@@ -49,5 +46,6 @@ defs = Definitions(
             port=EnvVar("POSTGRES_PORT"),
             db_name=EnvVar("POSTGRES_DB"),
         ),
+        "dbt": DbtCliResource(project_dir=str(DBT_PROJECT_DIR)),
     },
 )

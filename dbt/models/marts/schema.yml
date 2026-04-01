@@ -1,0 +1,24 @@
+version: 2
+
+models:
+  - name: v_electricity_prices
+    description: "Quarter hour electricity prices in cent/kWh"
+    columns:
+      - name: timestamp
+        tests:
+          - unique
+          - not_null
+  - name: v_daily_electricity_prices
+    description: "Daily avg electricity prices in cent/kWh"
+    columns:
+      - name: bucket_day
+        tests:
+          - unique
+          - not_null
+  - name: v_monthly_electricity_prices
+    description: "Monthly avg electricity prices in cent/kWh"
+    columns:
+      - name: bucket_month
+        tests:
+          - unique
+          - not_null
